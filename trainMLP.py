@@ -1,11 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Mar  6 00:59:55 2024
-
-@author: jonat
-"""
-
-
 import os
 import numpy as np
 import torch
@@ -16,9 +9,9 @@ import csv
 import mlpArchitecture 
 #%% MLP (pp. 5)
 
-csv_features_path = "TraningData/featuresTest.csv"
-cvs_labels_path = "TraningData/labalesTest.csv"
-nameModel = "MLP_Test_I1"
+csv_features_path = "TraningData/features.csv"
+cvs_labels_path = "TraningData/labales.csv"
+nameModel = "MLP_I1_Full"
 
 I_1_features = np.genfromtxt(csv_features_path, delimiter=',')
 I_1_features = torch.from_numpy(I_1_features).to('cuda') 

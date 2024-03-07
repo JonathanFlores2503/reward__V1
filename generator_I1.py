@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Mar  6 00:56:45 2024
-
-@author: jonat
-"""
-
 import os
 import numpy as np
 import torch
@@ -17,16 +11,15 @@ import pandas as pd
 
 #%% 
 # Page 4 Set generation F_n, F_a
-featuresI3DDir_path = "E:\\UCF-Crime\\I3D_Features\\Test"
-nameModel = "rewardMLP"
+featuresI3DDir_path = "/home/hpc/jonathan/Train"
 featuresI3D_classes = os.listdir(featuresI3DDir_path)
 F_n = []
 keyWord = 'feature'
 csv_Na_dir = "Distance"
 csv_output_dir = "Features"     
 dirI_1 = "TraningData"
-nameFeatures_csv = "featuresTest.csv"
-nameLabels_csv = "labalesTest.csv"
+nameFeatures_csv = "features.csv"
+nameLabels_csv = "labales.csv"
  
 for classesI3D in featuresI3D_classes:
     featuresOneClasse_path = os.path.join(featuresI3DDir_path, classesI3D)
@@ -62,8 +55,31 @@ print("Start Distance Calculation: Distance layer")
 F_n = torch.from_numpy(F_n).to('cuda').squeeze(0)
 F_n = F_n.to(dtype=torch.float32)
 
-#If you just add Fn in the database, uncomment the nex line code
-# 0/0
+#%%
+#If you just add Fn in the database, uncomment the next lines code
+# F_n = F_n.cpu().numpy()
+# file_is_empty = not os.path.exists(os.path.join(dirI_1, nameFeatures_csv)) or os.stat(os.path.join(dirI_1, "features.csv")).st_size == 0
+# with open(os.path.join(dirI_1, nameFeatures_csv), 'a', newline='') as csvfile:
+#     writer = csv.writer(csvfile)
+#     if not file_is_empty:
+#         csvfile.write('\n')
+#     for row in F_n:
+#         writer.writerow(row)
+
+# fnLables = np.zeros(F_n.shape[0], dtype="float32")
+# with open(os.path.join(dirI_1, nameLabels_csv), 'a', newline='') as csvfile:
+#     writer = csv.writer(csvfile)
+#     for label in fnLables:
+#         writer.writerow([label])
+
+# I_1_features_database = np.genfromtxt(os.path.join(dirI_1, nameFeatures_csv), delimiter=',')
+# I_1_labels_database  = np.genfromtxt(os.path.join(dirI_1, nameLabels_csv), delimiter=',')
+# print("I_1_features: ", I_1_features_database.shape)
+# print("I_1_labels: ", I_1_labels_database.shape)
+# assert(I_1_features_database.shape[0] == I_1_labels_database.shape[0])
+# exit()
+
+#%%
 for classNameFiles in featuresI3D_classes:
     if classNameFiles != "Normal":
         print(classNameFiles)
@@ -179,83 +195,61 @@ for classNameFiles in featuresI3D_classes:
     print("I_1_features: ", I_1_features_database.shape)
     print("I_1_labels: ", I_1_labels_database.shape)
     assert(I_1_features_database.shape[0] == I_1_labels_database.shape[0])
-#%%
-# F_n = F_n.cpu().numpy()
-# file_is_empty = not os.path.exists(os.path.join(dirI_1, nameFeatures_csv)) or os.stat(os.path.join(dirI_1, "features.csv")).st_size == 0
-# with open(os.path.join(dirI_1, nameFeatures_csv), 'a', newline='') as csvfile:
-#     writer = csv.writer(csvfile)
-#     if not file_is_empty:
-#         csvfile.write('\n')
-#     for row in F_n:
-#         writer.writerow(row)
-
-# fnLables = np.zeros(F_n.shape[0], dtype="float32")
-# with open(os.path.join(dirI_1, nameLabels_csv), 'a', newline='') as csvfile:
-#     writer = csv.writer(csvfile)
-#     for label in fnLables:
-#         writer.writerow([label])
-
-# I_1_features_database = np.genfromtxt(os.path.join(dirI_1, nameFeatures_csv), delimiter=',')
-# I_1_labels_database  = np.genfromtxt(os.path.join(dirI_1, nameLabels_csv), delimiter=',')
-# print("I_1_features: ", I_1_features_database.shape)
-# print("I_1_labels: ", I_1_labels_database.shape)
-# assert(I_1_features_database.shape[0] == I_1_labels_database.shape[0])
 
 #%% Obtaining GT and metrics
-import math
-from sklearn import metrics
+# import math
+# from sklearn import metrics
 
-gt_Database = "E:/UCF-Crime/Temporal_Anomaly_Annotation_For_Testing_Videos/Txt_formate/Temporal_Anomaly_Annotation.txt"
-df = pd.read_csv(gt_Database, sep='\s+', header=None)
-df = df.values
-gt_video = []
-auc = 0
-countVideos = 0
-for numberVideo in range(df.shape[0]):
-    gt_frame = []
-    if df[numberVideo,0][:6] != "Normal":
+# gt_Database = "E:/UCF-Crime/Temporal_Anomaly_Annotation_For_Testing_Videos/Txt_formate/Temporal_Anomaly_Annotation.txt"
+# df = pd.read_csv(gt_Database, sep='\s+', header=None)
+# df = df.values
+# gt_video = []
+# auc = 0
+# countVideos = 0
+# for numberVideo in range(df.shape[0]):
+#     gt_frame = []
+#     if df[numberVideo,0][:6] != "Normal":
         
-        for i in range(len(I_1_features[countVideos])):
-            if df[numberVideo,4] == -1:
-                # print("Una anomalia")
-                if (i+1) >= df[numberVideo,2] and (i+1) <= df[numberVideo,3]:
-                    gt_frame.append(1) 
-                    continue                               
-                else:
-                    gt_frame.append(0) 
-                    continue
-            # print("Dos anomalia")
-            if (i+1) >= df[numberVideo,2] and (i+1) <= df[numberVideo,3]:
-                gt_frame.append(1) 
-            elif (i+1) >= df[numberVideo,4] and (i+1) <= df[numberVideo,5]:
-                gt_frame.append(1)
-            else:
-                gt_frame.append(0)
+#         for i in range(len(I_1_features[countVideos])):
+#             if df[numberVideo,4] == -1:
+#                 # print("Una anomalia")
+#                 if (i+1) >= df[numberVideo,2] and (i+1) <= df[numberVideo,3]:
+#                     gt_frame.append(1) 
+#                     continue                               
+#                 else:
+#                     gt_frame.append(0) 
+#                     continue
+#             # print("Dos anomalia")
+#             if (i+1) >= df[numberVideo,2] and (i+1) <= df[numberVideo,3]:
+#                 gt_frame.append(1) 
+#             elif (i+1) >= df[numberVideo,4] and (i+1) <= df[numberVideo,5]:
+#                 gt_frame.append(1)
+#             else:
+#                 gt_frame.append(0)
                 
-        fpr, tpr, thresholds = metrics.roc_curve(np.array(gt_frame), np.array(I_1_features[countVideos]), pos_label=1)
+#         fpr, tpr, thresholds = metrics.roc_curve(np.array(gt_frame), np.array(I_1_features[countVideos]), pos_label=1)
         
-        if math.isnan(metrics.auc(fpr, tpr)):
-            auc += 0
-            print(countVideos, df[numberVideo,0], df[numberVideo,2:], len(I_1_features[countVideos]), 0)
-        else:
-            auc += metrics.auc(fpr, tpr)
-            print(countVideos, df[numberVideo,0], df[numberVideo,2:], len(I_1_features[countVideos]), metrics.auc(fpr, tpr))
-        gt_video.append(gt_frame)
-        countVideos += 1
+#         if math.isnan(metrics.auc(fpr, tpr)):
+#             auc += 0
+#             print(countVideos, df[numberVideo,0], df[numberVideo,2:], len(I_1_features[countVideos]), 0)
+#         else:
+#             auc += metrics.auc(fpr, tpr)
+#             print(countVideos, df[numberVideo,0], df[numberVideo,2:], len(I_1_features[countVideos]), metrics.auc(fpr, tpr))
+#         gt_video.append(gt_frame)
+#         countVideos += 1
 
-assert(len(gt_video) == len(I_1_features))
-print(auc/countVideos)
+# assert(len(gt_video) == len(I_1_features))
+# print(auc/countVideos)
 
-
-VideoNumberTest = 118
-plt.figure(figsize=(10, 5))
-plt.plot(I_1_features[VideoNumberTest], label='I_1')
-plt.plot(gt_video[VideoNumberTest], label='GT')
-if VideoNumberTest > 58:
-    VideoNumberTest += 150
-plt.title(("Comparison I_1 vs GT" + "[" + str(df[VideoNumberTest,0] + "]")))
-plt.xlabel('Snnipet')
-plt.ylabel('Labels')
-plt.legend()
-plt.savefig(("Graphs/" + "Comparison I_1 vs GT.jpg"), bbox_inches='tight')
-plt.show()
+# VideoNumberTest = 118
+# plt.figure(figsize=(10, 5))
+# plt.plot(I_1_features[VideoNumberTest], label='I_1')
+# plt.plot(gt_video[VideoNumberTest], label='GT')
+# if VideoNumberTest > 58:
+#     VideoNumberTest += 150
+# plt.title(("Comparison I_1 vs GT" + "[" + str(df[VideoNumberTest,0] + "]")))
+# plt.xlabel('Snnipet')
+# plt.ylabel('Labels')
+# plt.legend()
+# plt.savefig(("Graphs/" + "Comparison I_1 vs GT.jpg"), bbox_inches='tight')
+# plt.show()
