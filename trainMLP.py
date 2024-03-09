@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-import os
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from torch import nn
 import matplotlib.pyplot as plt
-import csv
 import mlpArchitecture 
-#%% MLP (pp. 5)
+
+
+"""MLP (pp. 5)"""
 
 csv_features_path = "TraningData/features.csv"
 cvs_labels_path = "TraningData/labales.csv"
-nameModel = "MLP_I1_Full"
+nameModel = "MLP_I1_v1"
 
 I_1_features = np.genfromtxt(csv_features_path, delimiter=',')
 I_1_features = torch.from_numpy(I_1_features).to('cuda') 
