@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Feb 28 22:34:09 2024
-
-@author: jonat
-"""
 import torch
-from torch.utils.data import DataLoader, TensorDataset
 from torch import nn
 import torch.nn.functional as F
 

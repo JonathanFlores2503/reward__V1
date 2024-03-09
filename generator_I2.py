@@ -9,24 +9,37 @@ import os
 import numpy as np
 import torch
 import mlpArchitecture
-import csv
 import matplotlib.pyplot as plt
-import pandas as pd
+import gt_eval
+import math
+from sklearn import metrics
+import cv2
 
-# featuresCSV_path = "TraningData/features.csv"
-# I_2_labels_csv_path = "TraningData/labelsI2.csv"
-#%% Raw Features
-dirRawFeatures_path = "FeaturesTest" #Test features
+"""Raw Features"""
+dirRawFeatures_path = "FeaturesTest/normal" #Test features without padding
+# dirRawFeatures_path = "FeaturesTest/padding" #Test features with padding
+gt_Database = "Temporal_Anomaly_Annotation.txt"
+pretraningModel_path = "Models/MLP_I1_v1.pth"
+gt_Numframes = "num_frames.csv"
+saveGraphs = "Test2"
+dirVideo_path = "UCF-Crime Path" # Database path (videos) UCF-Crime
+numVideo = 1 # [0-139]
+
+"""Raw Features"""
 featuresI3D_classes = os.listdir(dirRawFeatures_path)
-#%% Model
-pretraningModel_path = "Models/MLP_I1_full.pth"
+
+"""Model"""
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = mlpArchitecture.shallowNN().to(device)
 model.load_state_dict(torch.load(pretraningModel_path, map_location=device))
 model.eval()
-#%% I_2 
+
+"""I_2 """
 I_2_labels = []
-snippetSize = 16 * 5
+snippetSize = 16 * 6 # 16 = Number of frames in a snippet
+                     # 6 = Uniform separation between 5 consecutive frames selected from the original rate of 30 fps
+                     # 16 x 6 = 96 [Total frames analyzed by snippet]
+                     # 3.2s analyzed by snippet.
 for classesI3D in featuresI3D_classes:
     featuresOneClasse_path = os.path.join(dirRawFeatures_path, classesI3D)
     featuresOneClasseFiles = os.listdir(featuresOneClasse_path)
@@ -35,7 +48,7 @@ for classesI3D in featuresI3D_classes:
         F_n = np.genfromtxt(feature_path, delimiter=',')
         F_n = torch.from_numpy(F_n).to('cuda') 
         F_n = F_n.to(dtype=torch.float32)
-        print(featureName, ":", F_n.size())
+        # print(featureName, ":", F_n.size())
         with torch.no_grad():
             snnipetAnormal_pt = model(F_n) # [Tx1]
 
@@ -61,62 +74,73 @@ for classesI3D in featuresI3D_classes:
                 else:
                     I_2_preLabels.append(1)          
         I_2_labels.append(I_2_preLabels)
-#%% Obtaining GT and metrics
-import math
-from sklearn import metrics
-
-gt_Database = "E:/UCF-Crime/Temporal_Anomaly_Annotation_For_Testing_Videos/Txt_formate/Temporal_Anomaly_Annotation.txt"
-df = pd.read_csv(gt_Database, sep='\s+', header=None)
-df = df.values
-gt_video = []
+        
+""" Obtaining GT and metrics"""
+gt_anomalyFrames, gt_anomalyVideoName = gt_eval.gtByFrames (gt_Database, gt_Numframes)
 auc = 0
-countVideos = 0
-for numberVideo in range(df.shape[0]):
-    gt_frame = []
-    if df[numberVideo,0][:6] != "Normal":
-        
-        for i in range(len(I_2_labels[countVideos])):
-            if df[numberVideo,4] == -1:
-                # print("Una anomalia")
-                if (i+1) >= df[numberVideo,2] and (i+1) <= df[numberVideo,3]:
-                    gt_frame.append(1) 
-                    continue                               
-                else:
-                    gt_frame.append(0) 
-                    continue
-            # print("Dos anomalia")
-            if (i+1) >= df[numberVideo,2] and (i+1) <= df[numberVideo,3]:
-                gt_frame.append(1) 
-            elif (i+1) >= df[numberVideo,4] and (i+1) <= df[numberVideo,5]:
-                gt_frame.append(1)
-            else:
-                gt_frame.append(0)
-                
-        fpr, tpr, thresholds = metrics.roc_curve(np.array(gt_frame), np.array(I_2_labels[countVideos]), pos_label=1)
-        
+for i in range(len(gt_anomalyFrames)):
+    if len(gt_anomalyFrames[i]) <  len(I_2_labels[i]):
+        fpr, tpr, thresholds = metrics.roc_curve(np.array(gt_anomalyFrames[i]), np.array(I_2_labels[i][:len(gt_anomalyFrames[i])]), pos_label=1)
         if math.isnan(metrics.auc(fpr, tpr)):
             auc += 0
-            print(countVideos, df[numberVideo,0], df[numberVideo,2:], len(I_2_labels[countVideos]), 0)
+            print(i, gt_anomalyVideoName[i], len(gt_anomalyFrames[i]), len(I_2_labels[i]), 0)
         else:
             auc += metrics.auc(fpr, tpr)
-            print(countVideos, df[numberVideo,0], df[numberVideo,2:], len(I_2_labels[countVideos]), metrics.auc(fpr, tpr))
-        gt_video.append(gt_frame)
-        countVideos += 1
+            print(i, gt_anomalyVideoName[i], len(gt_anomalyFrames[i]), len(I_2_labels[i]), metrics.auc(fpr, tpr))
+    else:
+        fpr, tpr, thresholds = metrics.roc_curve(np.array(gt_anomalyFrames[i][:len(I_2_labels[i])]), np.array(I_2_labels[i]), pos_label=1)
+        if math.isnan(metrics.auc(fpr, tpr)):
+            auc += 0
+            print(i, gt_anomalyVideoName[i], len(gt_anomalyFrames[i]), len(I_2_labels[i]), 0)
+        else:
+            auc += metrics.auc(fpr, tpr)
+            print(i, gt_anomalyVideoName[i], len(gt_anomalyFrames[i]), len(I_2_labels[i]), metrics.auc(fpr, tpr))
 
-assert(len(gt_video) == len(I_2_labels))
-print(auc/countVideos)
+        
+assert(len(gt_anomalyFrames) == len(I_2_labels))
+print(auc/len(gt_anomalyFrames))
 
+#----Uncomment if you want to save the graphs----
+# for i in range(len(I_2_labels)):
+#     VideoNumberTest = i
+#     plt.figure(figsize=(10, 5))
+#     plt.plot(I_2_labels[i][:len(gt_anomalyFrames[i])], label='I_2')
+#     plt.plot(gt_anomalyFrames[VideoNumberTest], label='GT')
+#     if VideoNumberTest > 58:
+#         VideoNumberTest += 150
+#     plt.title(("Comparison I_2 vs GT" + " [" + str(gt_anomalyVideoName[i]+ "]")))
+#     plt.xlabel('Frames')
+#     plt.ylabel('Labels')
+#     plt.legend()
+#     # plt.savefig(("Graphs/" + saveGraphs +"/" + str(gt_anomalyVideoName[i]) + ".jpg"), bbox_inches='tight')
+#     plt.show()
 
-VideoNumberTest = 118
-plt.figure(figsize=(10, 5))
-plt.plot(I_2_labels[VideoNumberTest], label='I_2')
-plt.plot(gt_video[VideoNumberTest], label='GT')
-if VideoNumberTest > 58:
-    VideoNumberTest += 150
-plt.title(("Comparison I_2 vs GT" + "[" + str(df[VideoNumberTest,0] + "]")))
-plt.xlabel('Snnipet')
-plt.ylabel('Labels')
-plt.legend()
-plt.savefig(("Graphs/" + "Comparison I_2 vs GT.jpg"), bbox_inches='tight')
-plt.show()
+"""Test Video"""
+#----Uncomment if you want to take the visual tests by video----
+# video_number = gt_anomalyVideoName[numVideo]
+# classVideo = gt_anomalyVideoName[numVideo][:-8]
+# videoTest = dirVideo_path + "/" + classVideo + "/" + video_number + ".mp4"
+# cap = cv2.VideoCapture(videoTest)
+# if not cap.isOpened():
+#     print("Error! Can't open the video file.")
+#     exit()
+# frame_count = 0
+# while True:
+#     ret, frame = cap.read()
+#     if not ret:
+#         print("Can't receive frame (stream end?). Exiting ...")
+#         break
+#     cv2.putText(frame, ("# frame: " + str(frame_count)), (5,15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA )
+#     if gt_anomalyFrames[numVideo][frame_count] == 1:
+#         cv2.putText(frame, ("GT: Anomaly detected"), (5,35), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA )
+#     if I_2_labels[numVideo][frame_count] == 1:
+#         cv2.putText(frame, ("I_2 prediction: Anomaly detected"), (5,55), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA )
+#     cv2.imshow('frame', frame)
+#     frame_count += 1
+#     if len(I_2_labels[numVideo]) <= frame_count:
+#         break
+#     if cv2.waitKey(1) == ord('q'):
+#         break
+# cap.release()
+# cv2.destroyAllWindows()
     
